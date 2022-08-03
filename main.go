@@ -4,6 +4,8 @@ import (
     "fmt"    
     "io/ioutil"
     "net/http"
+    "time"
+    "os"
 )
 
 func uploadFile(w http.ResponseWriter, r *http.Request) {
@@ -15,7 +17,8 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
     // FormFile returns the first file for the given key `myFile`
     // it also returns the FileHeader so we can get the Filename,
     // the Header and the size of the file
-    file, handler, err := r.FormFile("myFile")
+    KeyName := "myFile"							// must match POST keyname!!
+    file, handler, err := r.FormFile(KeyName)
     if err != nil {
         fmt.Println("Error Retrieving the File")
         fmt.Println(err)
@@ -28,27 +31,38 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 
     // Create a temporary file within our temp-images directory that follows
     // a particular naming pattern
-    tempFile, err := ioutil.TempFile("uploaded-images", "upload-*.jpg")
+
+	fpname := GetFilenameDate()
+	fp, err := os.Create(fpname)
     if err != nil {
         fmt.Println(err)
     }
-    defer tempFile.Close()
-
+    defer fp.Close()
+    
     // read all of the contents of our uploaded file into a
     // byte array
     fileBytes, err := ioutil.ReadAll(file)
+    
     if err != nil {
         fmt.Println(err)
     }
     // write this byte array to our temporary file
-    tempFile.Write(fileBytes)
+    _, err2 := fp.Write(fileBytes)
+
+    if err2 != nil {
+        fmt.Println(err2)
+    }
+    fp.Sync()
+       
     // return that we have successfully uploaded our file!
-    fmt.Fprintf(w, "Successfully Uploaded File\n")
+    fmt.Printf("Successfully Uploaded File:%s\n",fpname)
+        
+    
 }
 
 func setupRoutes() {
-    http.HandleFunc("/upload", uploadFile)
-    http.ListenAndServe(":8080", nil)
+    http.HandleFunc("/upload", uploadFile)		// Endpoint
+    http.ListenAndServe(":8080", nil)			// Listen port
 }
 
 func main() {
@@ -56,4 +70,12 @@ func main() {
     setupRoutes()
         
 }
+func GetFilenameDate() string {
+    
+    now := time.Now()      // current local time
+	sec := now.Unix()      // number of seconds since January 1, 1970 UTC    
+    return "uploaded-images/"+"IMG" + fmt.Sprintf("%d",sec) + ".jpg"	// Directory must exist!!
+}
+
+
 
